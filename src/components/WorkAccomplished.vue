@@ -94,9 +94,12 @@
                       ) }}</td>
             <td>{{ formatNumberWithCommas(item.wt_percent) }}</td>
             <!-- Summed values -->
-            <td>{{ formatNumberWithCommas(item.previousMaterial) }}</td>
+            <td>{{ formatNumberWithCommas(item.previousMaterial || 0) }}</td>
             <td>{{ formatNumberWithCommas(getMaterialCost(section.id, item.itemno)) }}</td>
-            <td>{{ formatNumberWithCommas(getRemainingMaterialSum(section.id, item.itemno)) }}</td>
+            <td>{{ formatNumberWithCommas(
+                        getMaterialModifieds(section.id, item.itemno).reduce((sum, material) => 
+                          sum + parseFloat(material.remainingsubtotal || 0), 0)
+                      ) }}</td>
             <td>{{ formatNumberWithCommas(item.previousLabor) }}</td>
             <td>{{ formatNumberWithCommas(item.presentLabor) }}</td>
             <td>{{ formatNumberWithCommas(item.remainingLabor) }}</td>
