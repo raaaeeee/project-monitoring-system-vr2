@@ -94,7 +94,7 @@
                       ) }}</td>
             <td>{{ formatNumberWithCommas(item.wt_percent) }}</td>
             <!-- Summed values -->
-            <td>{{ formatNumberWithCommas(item.previousMaterial || 0) }}</td>
+            <td>{{ formatNumberWithCommas(getPreviousMaterial(section.id, item.itemno)) }}</td>
             <td>{{ formatNumberWithCommas(getMaterialCost(section.id, item.itemno)) }}</td>
             <td>{{ formatNumberWithCommas(
                         getMaterialModifieds(section.id, item.itemno).reduce((sum, material) => 
@@ -492,33 +492,66 @@ export default {
         if (showAlert) alert("Update failed. Please try again.");
       }
     },
+    async updatePreviousMaterial(sectionId, itemno) {
+      // Calculate the material cost for the given item.
+      const previousMaterialValue = this.getMaterialCost(sectionId, itemno);
+      
+      // Find the corresponding modified record and update its previous_material.
+      const section = this.sections.find(sec => sec.id === sectionId);
+      if (section && section.project_item_modifieds) {
+        const modifiedItem = section.project_item_modifieds.find(mod => mod.itemno === itemno);
+        if (modifiedItem) {
+          try {
+            await axios.put(
+              `http://localhost:1337/api/project-item-modifieds/${modifiedItem.documentId}`, 
+              { data: { previous_material: previousMaterialValue } }
+            );
+            // Update the local record as well.
+            modifiedItem.previous_material = previousMaterialValue;
+          } catch (error) {
+            console.error("Error updating previous material:", error);
+          }
+        }
+      }
+    },
     async updateAllMaterials(sectionId, itemno) {
       const materials = this.getMaterialModifieds(sectionId, itemno);
       for (const material of materials) {
         await this.updateMaterial(material, false);
       }
+      // After updating materials, update the previous material value.
+      await this.updatePreviousMaterial(sectionId, itemno);
       alert("All materials updated successfully!");
     },
-    async updateItemMaterialSums() {
+    getPreviousMaterial(sectionId, itemno) {
+      const section = this.sections.find(sec => sec.id === sectionId);
+      if (section && section.project_item_modifieds) {
+        const modifiedItem = section.project_item_modifieds.find(mod => mod.itemno === itemno);
+        return modifiedItem ? modifiedItem.previous_material : 0;
+      }
+      return 0;
+    },
+    updateItemMaterialSums() {
       for (const section of this.sections) {
         for (const item of section.items) {
           let sumEntered = 0;
           let sumPrevious = 0;
           const materials = this.getMaterialModifieds(section.id, item.itemno);
           for (const material of materials) {
-            try {
-              const response = await axios.get(
-                `http://localhost:1337/api/material-modifieds?populate=*&filters[documentId][$eq]=${material.documentId}`
-              );
+            axios.get(
+              `http://localhost:1337/api/material-modifieds?populate=*&filters[documentId][$eq]=${material.documentId}`
+            )
+            .then(response => {
               if (response.data && response.data.data) {
                 response.data.data.forEach(record => {
                   sumEntered += Number(record.entered_quantity) || 0;
                   sumPrevious += Number(record.previous_entered) || 0;
                 });
               }
-            } catch (error) {
+            })
+            .catch(error => {
               console.error("Error fetching material sums for documentId", material.documentId, error);
-            }
+            });
           }
           this.$set(item, 'presentMaterial', sumEntered);
           this.$set(item, 'previousMaterial', sumPrevious);
@@ -580,7 +613,7 @@ export default {
         });
       });
     },
-    // New helper method to get the modified record for a given section and item
+    // Helper method to get the modified record for a given section and item.
     getProjectItemModified(sectionId, itemno) {
       const section = this.sections.find(sec => sec.id === sectionId);
       if (!section || !section.project_item_modifieds) return null;

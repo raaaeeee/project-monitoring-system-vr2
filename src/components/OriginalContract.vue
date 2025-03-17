@@ -115,7 +115,7 @@
           </div>
 
           <button type="submit" class="btn mt-5" :disabled="isSubmitting">Submit Labor</button>
-          <button type="button" class="btn mt-5" @click="showLaborForm = false" :disabled="isSubmitting">Cancel</button>
+          <button type="button" class="btn mt-5" @click="showLaborForm = false" :disabled="isSubmitting">Done</button>
         </form>
       </div>
     </div>
@@ -363,7 +363,7 @@ export default {
 
         alert("Labor submitted successfully!");
         this.resetLaborData();
-        this.showLaborForm = false;
+        // this.showLaborForm = false; // Remove this line to keep the form visible
       } catch (error) {
         console.error("Error submitting labor:", error.response?.data || error);
         alert("Failed to submit labor.");
