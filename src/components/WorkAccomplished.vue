@@ -11,8 +11,7 @@
       <table ref="pdfTable" border="1" class="mx-auto my-5 pdf-table">
         <thead>
           <tr>
-            <!-- Updated colspan from 22 to 26 -->
-            <th colspan="26">
+            <th colspan="16">
               <img src="@/assets/h0.png" alt="Header Image" class="header-image">
             </th>
           </tr>
@@ -21,55 +20,41 @@
           <tr>
             <th rowspan="2">ITEM NO.</th>
             <th rowspan="2">DESCRIPTION</th>
-            <th colspan="7">ORIGINAL CONTRACT</th>
-            <!-- Updated colspan: previously 14, now 17 columns for WORK ACCOMPLISHED -->
-            <th colspan="17">WORK ACCOMPLISHED</th>
+            <th colspan="4">ORIGINAL CONTRACT</th>
+            <th colspan="10">WORK ACCOMPLISHED</th>
           </tr>
           <tr>
             <!-- ORIGINAL CONTRACT columns -->
-            <th>QTY</th>
-            <th>UNIT</th>
-            <th>UNIT COST</th>
             <th>MATERIAL</th>
             <th>LABOR</th>
             <th>AMOUNT</th>
             <th>WT.%</th>
             <!-- WORK ACCOMPLISHED columns -->
-            <!-- The next two columns now display the summed values from the API -->
             <th>PREVIOUS MATERIAL</th>
             <th>PRESENT MATERIAL</th>
             <th>REMAINING MATERIAL</th>
             <th>PREVIOS LABOR</th>
             <th>PRESENT LABOR</th>
             <th>REMAINING LABOR</th>
-            <!-- New columns inserted between REMAINING LABOR and Previous QTY -->
             <th>PREVIOUS</th>
-            <th>ACTUAL MATERIALS</th>
+            <th>ACTUAL MATERIALS %</th>
             <th>REMAINING</th>
             <th>RESEREVE</th>
-            <!-- Existing columns shifted accordingly -->
-            <th>Previous QTY</th>
-            <th>Previous AMOUNT</th>
-            <th>REMAINING QUANTITY</th>
-            <th>TOTAL AMOUNT</th>
-            <th>BALANCE</th>
-            <th>PREV PERCENTAGE</th>
-            <th>WEIGHTED % ACCOMP</th>
           </tr>
         </thead>
         <tbody v-for="section in sections" :key="section.id">
           <tr>
-            <td colspan="26" class="font-weight-bold">
+            <td colspan="16" class="font-weight-bold">
               {{ section.letter_label_for_item_no }}
             </td>
           </tr>
           <tr>
-            <td colspan="26" class="font-weight-bold">
+            <td colspan="16" class="font-weight-bold">
               {{ section.header_per_project_section }}
             </td>
           </tr>
           <tr>
-            <td colspan="26">
+            <td colspan="16">
               <v-progress-linear
                 :value="getProgressPercentage(section)"
                 :color="getProgressColor(getSumWtPercent(section), getSectionTotalWt(section))"
@@ -83,7 +68,7 @@
             </td>
           </tr>
           <tr>
-            <td colspan="26" class="font-italic">
+            <td colspan="16" class="font-italic">
               {{ section.mainDescription }}
             </td>
           </tr>
@@ -92,48 +77,40 @@
             <td @click="toggleMaterialDetails(section.id, item.itemno)" style="cursor: pointer;">
               {{ item.subDescription }}
             </td>
-            <td>{{ formatNumberWithCommas(getMaterialModifieds(section.id, item.itemno).reduce((sum, material, index) => sum + getMaterialQuantityFromMaterials(section.id, item.itemno, index), 0)) }}</td>
-            <td>{{ item.unit }}</td>
-            <td>{{ formatNumberWithCommas(item.unitCost) }}</td>
             <td>{{ formatNumberWithCommas(getMaterialCost(section.id, item.itemno)) }}</td>
             <td>{{ formatNumberWithCommas(getLaborCost()) }}</td>
             <td>{{ formatNumberWithCommas(getMaterialCost(section.id, item.itemno) + getLaborCost()) }}</td>
             <td>{{ formatNumberWithCommas(item.wt_percent) }}</td>
-            <!-- These two columns now display the summed values -->
+            <!-- Summed values -->
             <td>{{ formatNumberWithCommas(item.previousMaterial) }}</td>
-            <td>{{ formatNumberWithCommas(item.presentMaterial) }}</td>
-            <td>{{ formatNumberWithCommas(getRemainingMaterialSum(section.id, item.itemno)) }}</td>
+            <td>{{ formatNumberWithCommas(getMaterialCost(section.id, item.itemno)) }}</td>
+            <!-- REMAINING MATERIAL: now sums subtotals, yielding 1,041,341 with the given data -->
+            <td>{{ formatNumberWithCommas(getRemainingMaterialCost(section.id, item.itemno)) }}</td>
             <td>{{ formatNumberWithCommas(item.previousLabor) }}</td>
             <td>{{ formatNumberWithCommas(item.presentLabor) }}</td>
             <td>{{ formatNumberWithCommas(item.remainingLabor) }}</td>
             <!-- New columns added for table structure -->
+            <td>hi</td>
+            <td>
+              {{ formatTruncatedPercentage((item.presentMaterial * 100) / getRemainingMaterialCost(section.id, item.itemno)) }}%
+            </td>
             <td></td>
             <td></td>
-            <td></td>
-            <td></td>
-            <!-- Existing columns shifted accordingly -->
-            <td>{{ formatNumberWithCommas(getPreviousQty(section.id, item.itemno)) }}</td>
-            <td>{{ formatNumberWithCommas(calculatePreviousAmount(section.id, item)) }}</td>
-            <td>{{ formatNumberWithCommas(getModifiedQuantity(section.id, item.itemno)) }}</td>
-            <td>{{ formatNumberWithCommas(getTotalAmount(section.id, item.itemno)) }}</td>
-            <td>{{ formatNumberWithCommas(getModifiedAmount(section.id, item.itemno)) }}</td>
-            <td>{{ formatNumberWithCommas(getPreviousPercentage(section.id, item.itemno)) }}%</td>
-            <td>{{ formatNumberWithCommas(getPreviousPercentage(section.id, item.itemno)) }}%</td>
           </tr>
+          <!-- Material Details for an item -->
           <tr
             v-for="item in section.items.filter(i => expandedItems[`${section.id}-${i.itemno}`])"
             :key="'material-details-' + item.id"
           >
-            <td colspan="26">
+            <td colspan="16">
               <table class="material-table" border="1">
                 <thead>
                   <tr>
                     <th>Input</th>
                     <th>Material</th>
                     <th>Unit</th>
-                    <!-- Updated: now fetching quantity from the API’s “materials” array -->
                     <th>Quantity</th>
-                    <th>Remaining</th> 
+                    <th>Remaining</th>
                     <th>Price</th>
                     <th>Material Cost</th>
                     <th>Remaining</th>
@@ -154,14 +131,20 @@
                     </td>
                     <td>{{ material.material }}</td>
                     <td>{{ material.unit }}</td>
-                    <!-- Use the new helper method to get the quantity from "materials" -->
-                    <td>{{ formatNumberWithCommas(getMaterialQuantityFromMaterials(section.id, item.itemno, index)) }}</td>
+                    <td>
+                      {{ formatNumberWithCommas(getMaterialQuantityFromMaterials(section.id, item.itemno, index)) }}
+                    </td>
                     <td>{{ formatNumberWithCommas(material.remainingquantity) }}</td>
                     <td>{{ formatNumberWithCommas(material.price) }}</td>
-                    <td>{{ formatNumberWithCommas(getMaterialQuantityFromMaterials(section.id, item.itemno, index) * material.price) }}</td>
-                    <td>{{ formatNumberWithCommas(material.remainingsubtotal) }}</td>
                     <td>
-                      <button @click="updateMaterial(material)">Update</button>
+                      {{ formatNumberWithCommas(getMaterialQuantityFromMaterials(section.id, item.itemno, index) * material.price) }}
+                    </td>
+                    <td>{{ formatNumberWithCommas(material.remainingsubtotal) }}</td>
+                    <!-- Render the update button only in the first row with rowspan -->
+                    <td v-if="index === 0" :rowspan="getMaterialModifieds(section.id, item.itemno).length">
+                      <button @click="updateAllMaterials(section.id, item.itemno)">
+                        Update All Materials
+                      </button>
                     </td>
                   </tr>
                   <tr v-if="getMaterialModifieds(section.id, item.itemno).length === 0">
@@ -186,31 +169,18 @@
           </tr>
         </tbody>
         <tfoot>
-          <!--
-          <tr class="font-weight-bold bg-light">
-            <td colspan="9">TOTAL</td>
-            <td>{{ formatNumber(totalAmount) }}</td>
-            <td>{{ formatNumber(totalWtPercent) }}</td>
-            <td colspan="8"></td>
-            <td>{{ formatNumber(totalPreviousAmount) }}</td>
-            <td>{{ formatNumber(totalTotalAmount) }}</td>
-            <td>{{ formatNumber(totalPrevPercentage) }}%</td>
-            <td>{{ formatNumber(totalPrevPercentage) }}%</td>
-          </tr>
-          -->
           <tr @click="toggleProjectWorkers" style="cursor: pointer; background: #f0f0f0;">
-            <td colspan="26">
+            <td colspan="16">
               <strong>Project Workers (click to toggle)</strong>
             </td>
           </tr>
           <tr v-if="showProjectWorkers">
-            <td colspan="26">
+            <td colspan="16">
               <table class="workers-table" border="1">
                 <thead>
                   <tr>
                     <th>Labor Requirements</th>
                     <th>Name</th>
-                    <th>Manpower</th>
                     <th>Days</th>
                     <th>Rate Per Day</th>
                     <th>Labor Cost</th>
@@ -220,13 +190,12 @@
                   <tr v-for="worker in projectWorkers" :key="worker.id">
                     <td>{{ worker.laborRequirments }}</td>
                     <td>{{ worker.name }}</td>
-                    <td>{{ worker.manpower }}</td>
                     <td>{{ worker.days }}</td>
                     <td>{{ worker.ratePerDay }}</td>
                     <td>{{ formatNumber(worker.ratePerDay * worker.days) }}</td>
                   </tr>
                   <tr class="font-weight-bold">
-                    <td colspan="5">Subtotal Labor Cost</td>
+                    <td colspan="4">Subtotal Labor Cost</td>
                     <td>{{ formatNumber(totalLaborCost) }}</td>
                   </tr>
                 </tbody>
@@ -257,36 +226,28 @@ export default {
   },
   computed: {
     totalAmount() {
-      return this.sections.reduce((sum, section) => {
-        return sum + section.items.reduce((acc, item) => acc + parseFloat(item.amount || 0), 0);
-      }, 0);
+      return this.sections.reduce((sum, section) =>
+        sum + section.items.reduce((acc, item) => acc + parseFloat(item.amount || 0), 0), 0);
     },
     totalWtPercent() {
-      return this.sections.reduce((sum, section) => {
-        return sum + section.items.reduce((acc, item) => acc + parseFloat(item.wt_percent || 0), 0);
-      }, 0);
+      return this.sections.reduce((sum, section) =>
+        sum + section.items.reduce((acc, item) => acc + parseFloat(item.wt_percent || 0), 0), 0);
     },
     totalPreviousAmount() {
-      return this.sections.reduce((sum, section) => {
-        return sum + section.items.reduce((acc, item) => acc + parseFloat(this.calculatePreviousAmount(section.id, item)), 0);
-      }, 0);
+      return this.sections.reduce((sum, section) =>
+        sum + section.items.reduce((acc, item) => acc + parseFloat(this.calculatePreviousAmount(section.id, item)), 0), 0);
     },
     totalTotalAmount() {
-      return this.sections.reduce((sum, section) => {
-        return sum + section.items.reduce((acc, item) => {
-          return acc + parseFloat(this.getTotalAmount(section.id, item.itemno));
-        }, 0);
-      }, 0);
+      return this.sections.reduce((sum, section) =>
+        sum + section.items.reduce((acc, item) =>
+          acc + parseFloat(this.getTotalAmount(section.id, item.itemno)), 0), 0);
     },
     totalPrevPercentage() {
-      return this.sections.reduce((sum, section) => {
-        return sum + section.items.reduce((acc, item) => acc + parseFloat(this.getPreviousPercentage(section.id, item.itemno)), 0);
-      }, 0);
+      return this.sections.reduce((sum, section) =>
+        sum + section.items.reduce((acc, item) => acc + parseFloat(this.getPreviousPercentage(section.id, item.itemno)), 0), 0);
     },
     totalLaborCost() {
-      return this.projectWorkers.reduce((sum, worker) => {
-        return sum + (worker.ratePerDay * worker.days);
-      }, 0);
+      return this.projectWorkers.reduce((sum, worker) => sum + (worker.ratePerDay * worker.days), 0);
     }
   },
   methods: {
@@ -329,33 +290,26 @@ export default {
     },
     updateProjectItemModifiedAmounts() {
       this.sections.forEach(section => {
-        section.project_item_modifieds = this.projectItemModifieds.filter(mod => {
-          return mod.header_per_project_section && mod.header_per_project_section.id === section.id;
-        });
+        section.project_item_modifieds = this.projectItemModifieds.filter(mod =>
+          mod.header_per_project_section && mod.header_per_project_section.id === section.id);
       });
     },
     getPreviousQty(sectionId, itemno) {
       const section = this.sections.find(sec => sec.id === sectionId);
       if (!section || !section.project_item_modifieds) return 0;
-      const modifiedItem = section.project_item_modifieds.find(
-        modItem => modItem.itemno === itemno
-      );
+      const modifiedItem = section.project_item_modifieds.find(modItem => modItem.itemno === itemno);
       return modifiedItem ? parseFloat(modifiedItem.P_EnteredQuantity) || 0 : 0;
     },
     getModifiedQuantity(sectionId, itemno) {
       const section = this.sections.find(sec => sec.id === sectionId);
       if (!section || !section.project_item_modifieds) return 0;
-      const modifiedItem = section.project_item_modifieds.find(
-        modItem => modItem.itemno === itemno
-      );
+      const modifiedItem = section.project_item_modifieds.find(modItem => modItem.itemno === itemno);
       return modifiedItem ? parseFloat(modifiedItem.quantity) || 0 : 0;
     },
     getModifiedAmount(sectionId, itemno) {
       const section = this.sections.find(sec => sec.id === sectionId);
       if (!section || !section.project_item_modifieds) return 0;
-      const modifiedItem = section.project_item_modifieds.find(
-        modItem => modItem.itemno === itemno
-      );
+      const modifiedItem = section.project_item_modifieds.find(modItem => modItem.itemno === itemno);
       return modifiedItem ? parseFloat(modifiedItem.amount) || 0 : 0;
     },
     calculatePreviousAmount(sectionId, item) {
@@ -366,9 +320,7 @@ export default {
     getPreviousPercentage(sectionId, itemno) {
       const section = this.sections.find(sec => sec.id === sectionId);
       if (!section || !section.project_item_modifieds) return 0;
-      const modifiedItem = section.project_item_modifieds.find(
-        modItem => modItem.itemno === itemno
-      );
+      const modifiedItem = section.project_item_modifieds.find(modItem => modItem.itemno === itemno);
       return modifiedItem ? parseFloat(modifiedItem.p_wt_percent) || 0 : 0;
     },
     getTotalAmount(sectionId, itemno) {
@@ -380,9 +332,7 @@ export default {
     getMaterialModifieds(sectionId, itemno) {
       const section = this.sections.find(sec => sec.id === sectionId);
       if (!section || !section.project_item_modifieds) return [];
-      const modifiedItem = section.project_item_modifieds.find(
-        modItem => modItem.itemno === itemno
-      );
+      const modifiedItem = section.project_item_modifieds.find(modItem => modItem.itemno === itemno);
       if (!modifiedItem || !modifiedItem.material_modifieds) return [];
       // Ensure each material has reactive properties added.
       modifiedItem.material_modifieds.forEach(material => {
@@ -398,16 +348,31 @@ export default {
       });
       return modifiedItem.material_modifieds;
     },
-    // New helper method to get the quantity from the "materials" array in the API response
+    // New helper to get quantity from the "materials" array
     getMaterialQuantityFromMaterials(sectionId, itemno, index) {
       const section = this.sections.find(sec => sec.id === sectionId);
       if (!section || !section.project_item_modifieds) return 0;
-      const modifiedItem = section.project_item_modifieds.find(
-        modItem => modItem.itemno === itemno
-      );
+      const modifiedItem = section.project_item_modifieds.find(modItem => modItem.itemno === itemno);
       if (!modifiedItem || !modifiedItem.materials) return 0;
       return modifiedItem.materials[index] ? modifiedItem.materials[index].quantity : 0;
     },
+    // Updated method for REMAINING MATERIAL:
+    // Instead of subtracting (entered_quantity * price), we now simply sum the subtotals.
+    getRemainingMaterialCost(sectionId, itemno) {
+      const materials = this.getMaterialModifieds(sectionId, itemno);
+      return materials.reduce((sum, material) => {
+        const subtotal = parseFloat(material.subtotal) || 0;
+        return sum + subtotal;
+      }, 0);
+    },
+    // Re-added method to compute a percentage based on remaining quantity
+    getMaterialDifference(sectionId, item) {
+      const totalRemaining = this.getRemainingMaterialSum(sectionId, item.itemno);
+      if (totalRemaining === 0) return 0;
+      const actualPercentage = (item.presentMaterial * 100) / totalRemaining;
+      return actualPercentage;
+    },
+    // Existing helper: sum remaining quantities (unchanged)
     getRemainingMaterialSum(sectionId, itemno) {
       const materials = this.getMaterialModifieds(sectionId, itemno);
       return materials.reduce((sum, material) => sum + parseFloat(material.remainingquantity || 0), 0);
@@ -419,12 +384,10 @@ export default {
     toggleProjectWorkers() {
       this.showProjectWorkers = !this.showProjectWorkers;
     },
-    // Format number to 2 decimal places.
     formatDecimal(value) {
       if (value === null || value === undefined || isNaN(value)) return '0.00';
       return parseFloat(value).toFixed(2);
     },
-    // Format number to 2 decimal places.
     formatNumber(value) {
       if (value === null || value === undefined || isNaN(value)) return '0.00';
       return parseFloat(value).toFixed(2);
@@ -434,23 +397,26 @@ export default {
       const formattedValue = parseFloat(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return formattedValue.endsWith('.00') ? formattedValue.slice(0, -3) : formattedValue;
     },
+    formatTruncatedPercentage(value) {
+      if (value === null || value === undefined || isNaN(value)) return '--';
+      const truncated = Math.floor(value);
+      return truncated.toFixed(2);
+    },
     redirectToViewWeeklyProgressReport() {
       const documentId = this.$route.params.documentId;
       this.$router.push({ name: 'ViewWeeklyProgressReport', params: { documentId } });
     },
     getSumWtPercent(section) {
       if (section.project_item_modifieds && section.project_item_modifieds.length > 0) {
-        return section.project_item_modifieds.reduce((sum, modItem) => {
-          return sum + (parseFloat(modItem.sum_wt_percent) || 0);
-        }, 0);
+        return section.project_item_modifieds.reduce((sum, modItem) =>
+          sum + (parseFloat(modItem.sum_wt_percent) || 0), 0);
       }
       return 0;
     },
     getSectionTotalWt(section) {
       if (section.items && section.items.length > 0) {
-        return section.items.reduce((sum, item) => {
-          return sum + (parseFloat(item.wt_percent) || 0);
-        }, 0);
+        return section.items.reduce((sum, item) =>
+          sum + (parseFloat(item.wt_percent) || 0), 0);
       }
       return 0;
     },
@@ -482,24 +448,24 @@ export default {
         pdf.save('project-details.pdf');
       });
     },
-    getTotalMaterialQuantity(sectionId, itemno) {
-      const materials = this.getMaterialModifieds(sectionId, itemno);
-      return materials.reduce((sum, material) => sum + parseFloat(material.quantity || 0), 0);
-    },
+    // Updated method: multiply entered_quantity with price for PRESENT MATERIAL column
     getMaterialCost(sectionId, itemno) {
       const materials = this.getMaterialModifieds(sectionId, itemno);
-      return materials.reduce((sum, material, index) => sum + (this.getMaterialQuantityFromMaterials(sectionId, itemno, index) * material.price), 0);
+      return materials.reduce((sum, material) => {
+        const enteredQuantity = parseFloat(material.entered_quantity) || 0;
+        return sum + (enteredQuantity * material.price);
+      }, 0);
     },
     getLaborCost() {
       return this.projectWorkers.reduce((sum, worker) => sum + (worker.ratePerDay * worker.days), 0);
     },
-    async updateMaterial(material) {
+    async updateMaterial(material, showAlert = true) {
       let inputVal = parseFloat(material.inputField);
       if (isNaN(inputVal)) {
         inputVal = 0;
       }
       if (inputVal < 0) {
-        alert("Please enter a valid non-negative number.");
+        if (showAlert) alert("Please enter a valid non-negative number.");
         return;
       }
       const newRemainingQuantity = parseFloat(material.remainingquantity) - inputVal;
@@ -523,16 +489,23 @@ export default {
             }
           );
         } else {
-          alert("Material-modified record not found.");
+          if (showAlert) alert("Material-modified record not found.");
         }
         
         material.remainingquantity = newRemainingQuantity;
         material.remainingsubtotal = newRemainingSubtotal;
-        alert("Material updated successfully!");
+        if (showAlert) alert("Material updated successfully!");
       } catch (error) {
         console.error("Error updating material:", error);
-        alert("Update failed. Please try again.");
+        if (showAlert) alert("Update failed. Please try again.");
       }
+    },
+    async updateAllMaterials(sectionId, itemno) {
+      const materials = this.getMaterialModifieds(sectionId, itemno);
+      for (const material of materials) {
+        await this.updateMaterial(material, false);
+      }
+      alert("All materials updated successfully!");
     },
     async updateItemMaterialSums() {
       for (const section of this.sections) {
@@ -557,13 +530,48 @@ export default {
           }
           this.$set(item, 'presentMaterial', sumEntered);
           this.$set(item, 'previousMaterial', sumPrevious);
+          this.updateRemainingPercentageForItem(section, item);
         }
       }
     },
-    // New method to update weight percentage based on material count.
+    updateRemainingPercentageForItem(section, item) {
+      const actualPercentage = (item.presentMaterial * 100) / this.getRemainingMaterialCost(section.id, item.itemno);
+      const difference = this.getMaterialDifference(section.id, item) - actualPercentage;
+      const computedPercentage = this.formatTruncatedPercentage(difference);
+      
+      axios.put(`http://localhost:1337/api/project-items/${item.documentId}`, {
+        data: {
+          remaining_percentage: computedPercentage
+        }
+      })
+      .then(response => {
+        console.log('Project item updated with remaining_percentage:', response);
+      })
+      .catch(error => {
+        console.error('Error updating project item:', error);
+      });
+      
+      const modifiedRecord = section.project_item_modifieds.find(
+        modItem => modItem.itemno === item.itemno
+      );
+      if (modifiedRecord && modifiedRecord.id) {
+        axios.put(`http://localhost:1337/api/project-item-modifieds/${modifiedRecord.documentId}`, {
+          data: {
+            remaining_percentage: computedPercentage
+          }
+        })
+        .then(response => {
+          console.log('Project item modified updated with remaining_percentage:', response);
+        })
+        .catch(error => {
+          console.error('Error updating project item modified:', error);
+        });
+      } else {
+        console.warn('No matching modified record found for item:', item.itemno);
+      }
+    },
     updateWeightPercent() {
       let globalMaterialCount = 0;
-      // Count the total number of material rows.
       this.sections.forEach(section => {
         section.items.forEach(item => {
           const localMaterialCount = this.getMaterialModifieds(section.id, item.itemno).length;
@@ -572,7 +580,6 @@ export default {
       });
       if (globalMaterialCount === 0) return;
       const factor = 100 / globalMaterialCount;
-      // Update each item's wt_percent based on its material count.
       this.sections.forEach(section => {
         section.items.forEach(item => {
           const localMaterialCount = this.getMaterialModifieds(section.id, item.itemno).length;
