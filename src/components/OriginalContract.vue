@@ -332,25 +332,26 @@ export default {
         price: null,
       };
     },
+
     async submitLabor() {
       if (this.isSubmitting) return;
       this.isSubmitting = true;
       try {
         console.log("Submitting labor with:", this.laborData);
 
-        if (!this.projectItemId) {
-          alert("No project item found. Please submit a project item first.");
+        if (!this.projectItemModifiedId) {
+          alert("No project item modified found. Please submit a project item first.");
           return;
         }
 
-        // Construct the payload matching the sample data structure
+        // Construct the payload using the relation field "project_item_modified"
         const laborPayload = {
-          laborRequirments: this.laborData.laborRequirements, // note the key name to match the API sample
+          laborRequirments: this.laborData.laborRequirements,
           manpower: this.laborData.manpower,
           days: this.laborData.days,
           ratePerDay: this.laborData.ratePerDay,
-          project: this.formData.project, // using the project ID from formData
-          name: this.laborData.name.join(", ") // joining names into a comma-separated string
+          project_item_modified: this.projectItemModifiedId,
+          name: this.laborData.name.join(", ")
         };
 
         // Submit labor data to the project-workers API
@@ -390,7 +391,8 @@ export default {
     },
     done() {
       this.showMaterialForm = false;
-      alert("You have completed the submission process.");
+      this.showLaborForm = true;
+      alert("Material submission complete! Please fill out the Labor Requirements form.");
     },
   },
 };
@@ -487,11 +489,6 @@ input:disabled {
   border-radius: 10px;
   max-width: 500px;
   width: 100%;
-}
-.scrollable-list {
-  max-height: 100px; /* Fixed height */
-  overflow-y: auto; /* Enable vertical scrolling */
-  margin-top: 10px;
 }
 .scrollable-list {
   max-height: 100px;
