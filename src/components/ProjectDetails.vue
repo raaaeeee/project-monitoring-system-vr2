@@ -185,36 +185,6 @@
               <strong>Project Workers (click to toggle)</strong>
             </td>
           </tr>
-          <tr v-if="showProjectWorkers">
-            <td colspan="26">
-              <table class="workers-table" border="1">
-                <thead>
-                  <tr>
-                    <th>Labor Requirements</th>
-                    <th>Name</th>
-                    <th>Manpower</th>
-                    <th>Days</th>
-                    <th>Rate Per Day</th>
-                    <th>Labor Cost</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="worker in projectWorkers" :key="worker.id">
-                    <td>{{ worker.laborRequirments }}</td>
-                    <td>{{ worker.name }}</td>
-                    <td>{{ worker.manpower }}</td>
-                    <td>{{ worker.days }}</td>
-                    <td>{{ worker.ratePerDay }}</td>
-                    <td>{{ formatNumber(worker.ratePerDay * worker.days) }}</td>
-                  </tr>
-                  <tr class="font-weight-bold">
-                    <td colspan="5">Subtotal Labor Cost</td>
-                    <td>{{ formatNumber(totalLaborCost) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
         </tfoot>
       </table>
     </div>

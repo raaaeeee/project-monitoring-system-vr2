@@ -36,6 +36,7 @@
             <th>PREVIOS LABOR</th>
             <th>PRESENT LABOR</th>
             <th>REMAINING LABOR</th>
+            <!-- New columns added for table structure -->
             <th>PREVIOUS</th>
             <th>ACTUAL MATERIALS %</th>
             <th>REMAINING</th>
@@ -77,32 +78,40 @@
             <td @click="toggleMaterialDetails(section.id, item.itemno)" style="cursor: pointer;">
               {{ item.subDescription }}
             </td>
-            <td>{{ formatNumberWithCommas(getMaterialCost(section.id, item.itemno)) }}</td>
-            <td>{{ formatNumberWithCommas(getLaborCost()) }}</td>
-            <td>{{ formatNumberWithCommas(getMaterialCost(section.id, item.itemno) + getLaborCost()) }}</td>
+            <td>{{ formatNumberWithCommas(
+                        getMaterialModifieds(section.id, item.itemno).reduce((sum, material, index) => 
+                          sum + (getMaterialQuantityFromMaterials(section.id, item.itemno, index) * material.price), 0)
+                      ) }}</td>
+            <td>{{ formatNumberWithCommas(
+                          getProjectItemModified(section.id, item.itemno).project_workers.reduce((sum, worker) => 
+                            sum + (worker.ratePerDay * worker.days), 0)
+                        ) }}</td>
+            <td>{{ formatNumberWithCommas(
+                        getMaterialModifieds(section.id, item.itemno).reduce((sum, material, index) => 
+                          sum + (getMaterialQuantityFromMaterials(section.id, item.itemno, index) * material.price), 0) +
+                        getProjectItemModified(section.id, item.itemno).project_workers.reduce((sum, worker) => 
+                          sum + (worker.ratePerDay * worker.days), 0)
+                      ) }}</td>
             <td>{{ formatNumberWithCommas(item.wt_percent) }}</td>
             <!-- Summed values -->
             <td>{{ formatNumberWithCommas(item.previousMaterial) }}</td>
             <td>{{ formatNumberWithCommas(getMaterialCost(section.id, item.itemno)) }}</td>
-            <!-- REMAINING MATERIAL: now sums subtotals, yielding 1,041,341 with the given data -->
-            <td>{{ formatNumberWithCommas(getRemainingMaterialCost(section.id, item.itemno)) }}</td>
+            <td>{{ formatNumberWithCommas(getRemainingMaterialSum(section.id, item.itemno)) }}</td>
             <td>{{ formatNumberWithCommas(item.previousLabor) }}</td>
             <td>{{ formatNumberWithCommas(item.presentLabor) }}</td>
             <td>{{ formatNumberWithCommas(item.remainingLabor) }}</td>
             <!-- New columns added for table structure -->
             <td>hi</td>
             <td>
-              {{ formatTruncatedPercentage((item.presentMaterial * 100) / getRemainingMaterialCost(section.id, item.itemno)) }}%
+              {{ formatTruncatedPercentage((item.presentMaterial * 100) / getRemainingMaterialSum(section.id, item.itemno)) }}%
             </td>
             <td></td>
             <td></td>
           </tr>
-          <!-- Material Details for an item -->
-          <tr
-            v-for="item in section.items.filter(i => expandedItems[`${section.id}-${i.itemno}`])"
-            :key="'material-details-' + item.id"
-          >
+          <!-- Material and Labor Details for an item -->
+          <tr v-for="item in section.items.filter(i => expandedItems[`${section.id}-${i.itemno}`])" :key="'expanded-details-' + item.id">
             <td colspan="16">
+              <!-- Material Details Table -->
               <table class="material-table" border="1">
                 <thead>
                   <tr>
@@ -118,33 +127,21 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    v-for="(material, index) in getMaterialModifieds(section.id, item.itemno)"
-                    :key="'material-' + index"
-                  >
+                  <tr v-for="(material, index) in getMaterialModifieds(section.id, item.itemno)" :key="'material-' + index">
                     <td style="width: 100px;">
-                      <input
-                        type="number"
-                        v-model.number="material.inputField"
-                        placeholder="Enter value"
-                      />
+                      <input type="number" v-model.number="material.inputField" placeholder="Enter value" />
                     </td>
                     <td>{{ material.material }}</td>
                     <td>{{ material.unit }}</td>
-                    <td>
-                      {{ formatNumberWithCommas(getMaterialQuantityFromMaterials(section.id, item.itemno, index)) }}
-                    </td>
+                    <td>{{ formatNumberWithCommas(getMaterialQuantityFromMaterials(section.id, item.itemno, index)) }}</td>
                     <td>{{ formatNumberWithCommas(material.remainingquantity) }}</td>
                     <td>{{ formatNumberWithCommas(material.price) }}</td>
                     <td>
                       {{ formatNumberWithCommas(getMaterialQuantityFromMaterials(section.id, item.itemno, index) * material.price) }}
                     </td>
                     <td>{{ formatNumberWithCommas(material.remainingsubtotal) }}</td>
-                    <!-- Render the update button only in the first row with rowspan -->
                     <td v-if="index === 0" :rowspan="getMaterialModifieds(section.id, item.itemno).length">
-                      <button @click="updateAllMaterials(section.id, item.itemno)">
-                        Update All Materials
-                      </button>
+                      <button @click="updateAllMaterials(section.id, item.itemno)">Update All Materials</button>
                     </td>
                   </tr>
                   <tr v-if="getMaterialModifieds(section.id, item.itemno).length === 0">
@@ -154,55 +151,60 @@
                     <td colspan="6" class="font-weight-bold">Sub-total</td>
                     <td class="font-weight-bold">
                       {{ formatNumberWithCommas(
-                          getMaterialModifieds(section.id, item.itemno).reduce(
-                            (sum, material, index) => sum + (getMaterialQuantityFromMaterials(section.id, item.itemno, index) * material.price),
-                            0
-                          )
-                        ) }}
+                        getMaterialModifieds(section.id, item.itemno).reduce((sum, material, index) => 
+                          sum + (getMaterialQuantityFromMaterials(section.id, item.itemno, index) * material.price), 0)
+                      ) }}
                     </td>
                     <td></td>
                     <td></td>
                   </tr>
                 </tbody>
-              </table>
+              </table> 
+              
+              <!-- Workers Table (Labor Details) with Input Field -->
+              <div v-if="getProjectItemModified(section.id, item.itemno) &&
+                          getProjectItemModified(section.id, item.itemno).project_workers &&
+                          getProjectItemModified(section.id, item.itemno).project_workers.length">
+                <table class="workers-table" border="1">
+                  <thead>
+                    <tr>
+                      <th>Input</th>
+                      <th>Labor Requirements</th>
+                      <th>Name</th>
+                      <th>Days</th>
+                      <th>Remaining</th>
+                      <th>Rate Per Day</th>
+                      <th>Labor Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(worker, wIndex) in getProjectItemModified(section.id, item.itemno).project_workers" :key="'worker-' + wIndex">
+                      <td style="width: 100px;">
+                        <input type="number" v-model.number="worker.inputField" placeholder="Enter value" />
+                      </td>
+                      <td>{{ worker.laborRequirments }}</td>
+                      <td>{{ worker.name }}</td>
+                      <td>{{ worker.days }}</td>
+                      <td>{{ worker.remaining }}</td>
+                      <td>{{ worker.ratePerDay }}</td>
+                      <td>{{ formatNumberWithCommas(worker.ratePerDay * worker.days) }}</td>
+                    </tr>
+                    <!-- Subtotal row for labor cost -->
+                    <tr class="font-weight-bold">
+                      <td colspan="6">Subtotal Labor Cost</td>
+                      <td>
+                        {{ formatNumberWithCommas(
+                          getProjectItemModified(section.id, item.itemno).project_workers.reduce((sum, worker) => 
+                            sum + (worker.ratePerDay * worker.days), 0)
+                        ) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </td>
           </tr>
         </tbody>
-        <tfoot>
-          <tr @click="toggleProjectWorkers" style="cursor: pointer; background: #f0f0f0;">
-            <td colspan="16">
-              <strong>Project Workers (click to toggle)</strong>
-            </td>
-          </tr>
-          <tr v-if="showProjectWorkers">
-            <td colspan="16">
-              <table class="workers-table" border="1">
-                <thead>
-                  <tr>
-                    <th>Labor Requirements</th>
-                    <th>Name</th>
-                    <th>Days</th>
-                    <th>Rate Per Day</th>
-                    <th>Labor Cost</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="worker in projectWorkers" :key="worker.id">
-                    <td>{{ worker.laborRequirments }}</td>
-                    <td>{{ worker.name }}</td>
-                    <td>{{ worker.days }}</td>
-                    <td>{{ worker.ratePerDay }}</td>
-                    <td>{{ formatNumber(worker.ratePerDay * worker.days) }}</td>
-                  </tr>
-                  <tr class="font-weight-bold">
-                    <td colspan="4">Subtotal Labor Cost</td>
-                    <td>{{ formatNumber(totalLaborCost) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </tfoot>
       </table>
     </div>
   </div>
@@ -348,7 +350,6 @@ export default {
       });
       return modifiedItem.material_modifieds;
     },
-    // New helper to get quantity from the "materials" array
     getMaterialQuantityFromMaterials(sectionId, itemno, index) {
       const section = this.sections.find(sec => sec.id === sectionId);
       if (!section || !section.project_item_modifieds) return 0;
@@ -356,26 +357,15 @@ export default {
       if (!modifiedItem || !modifiedItem.materials) return 0;
       return modifiedItem.materials[index] ? modifiedItem.materials[index].quantity : 0;
     },
-    // Updated method for REMAINING MATERIAL:
-    // Instead of subtracting (entered_quantity * price), we now simply sum the subtotals.
-    getRemainingMaterialCost(sectionId, itemno) {
+    getRemainingMaterialSum(sectionId, itemno) {
       const materials = this.getMaterialModifieds(sectionId, itemno);
-      return materials.reduce((sum, material) => {
-        const subtotal = parseFloat(material.subtotal) || 0;
-        return sum + subtotal;
-      }, 0);
+      return materials.reduce((sum, material) => sum + parseFloat(material.remainingquantity || 0), 0);
     },
-    // Re-added method to compute a percentage based on remaining quantity
     getMaterialDifference(sectionId, item) {
       const totalRemaining = this.getRemainingMaterialSum(sectionId, item.itemno);
       if (totalRemaining === 0) return 0;
       const actualPercentage = (item.presentMaterial * 100) / totalRemaining;
       return actualPercentage;
-    },
-    // Existing helper: sum remaining quantities (unchanged)
-    getRemainingMaterialSum(sectionId, itemno) {
-      const materials = this.getMaterialModifieds(sectionId, itemno);
-      return materials.reduce((sum, material) => sum + parseFloat(material.remainingquantity || 0), 0);
     },
     toggleMaterialDetails(sectionId, itemno) {
       const key = `${sectionId}-${itemno}`;
@@ -448,7 +438,6 @@ export default {
         pdf.save('project-details.pdf');
       });
     },
-    // Updated method: multiply entered_quantity with price for PRESENT MATERIAL column
     getMaterialCost(sectionId, itemno) {
       const materials = this.getMaterialModifieds(sectionId, itemno);
       return materials.reduce((sum, material) => {
@@ -535,7 +524,7 @@ export default {
       }
     },
     updateRemainingPercentageForItem(section, item) {
-      const actualPercentage = (item.presentMaterial * 100) / this.getRemainingMaterialCost(section.id, item.itemno);
+      const actualPercentage = (item.presentMaterial * 100) / this.getRemainingMaterialSum(section.id, item.itemno);
       const difference = this.getMaterialDifference(section.id, item) - actualPercentage;
       const computedPercentage = this.formatTruncatedPercentage(difference);
       
@@ -587,6 +576,12 @@ export default {
           this.$set(item, 'wt_percent', newWtPercent);
         });
       });
+    },
+    // New helper method to get the modified record for a given section and item
+    getProjectItemModified(sectionId, itemno) {
+      const section = this.sections.find(sec => sec.id === sectionId);
+      if (!section || !section.project_item_modifieds) return null;
+      return section.project_item_modifieds.find(modItem => modItem.itemno === itemno);
     }
   },
   mounted() {
